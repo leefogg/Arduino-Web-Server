@@ -75,8 +75,11 @@ void setup() {
 void readHTTPRequest(EthernetClient client) {
 	Request.File = "";
 	Request.HTTPMethod = HTTPMethod::Get; // Assume get
+	Request.KeepAlive = false; // Close connection after by default
 
 	String line = readLine(client);
+	Serial.println(line);
+
 	if (line.indexOf("CONNECT"))
 		Request.HTTPMethod = HTTPMethod::Connect;
 	if (line.indexOf("DELETE"))
@@ -96,6 +99,8 @@ void readHTTPRequest(EthernetClient client) {
 	Request.File = line.substring(line.indexOf(' '), line.lastIndexOf(' '));
 
 	while ((line = readLine(client)).length() == 1) {
+		Serial.println(line);
+
 		if (line.indexOf("Connection: "))
 			Request.KeepAlive = line.substring(line.indexOf(' ')) == "keep-alive";
 	}
@@ -121,50 +126,44 @@ void loop() {
 	if (client) {
 		while (client.connected()) {
 			if (client.available()) {
-				String line = readLine(client);
-				Serial.println(line);
-				// if you've gotten to the end of the line (received a newline
-				// character) and the line is blank, the http request has ended,
-				// so you can send a reply
-				if (line.length() == 1) {
-					// send a standard http response header
-					client.println("HTTP/1.1 200 OK");
-					client.println("Content-Type: text/html");
-					client.println("Connection: Closed");// the connection will be closed after completion of the response
-					//client.println("Refresh: 5");// refresh the page automatically every 5 sec
-					client.println();
+				readHTTPRequest(client);
+
+				// send a standard http response header
+				client.println("HTTP/1.1 200 OK");
+				client.println("Content-Type: text/html");
+				client.println("Connection: Closed");// the connection will be closed after completion of the response
+				//client.println("Refresh: 5");// refresh the page automatically every 5 sec
+				client.println();
 		
-					enableSD();
-
-					File dataFile = SD.open("page.txt");
-					// if the file is available, write to it:
-					if (dataFile) {
-						while (dataFile.available()) {
-							// Buffer the data
-							int const buffersize = 100; //TODO fill RAM
-							char buffer[buffersize];
-							unsigned int i = 0;
-							while (i < buffersize && dataFile.available()) {
-								buffer[i++] = dataFile.read();
-							}
-
-							// Send buffered data
-							enableEthernet();
-							unsigned int size = i;
-							for (i = 0; i < size; i++)
-								client.write(buffer[i]);
-
-							enableSD();
+				enableSD();
+				File dataFile = SD.open("page.txt");
+				// if the file is available, write to it:
+				if (dataFile) {
+					while (dataFile.available()) {
+						// Buffer the data
+						int const buffersize = 100; //TODO fill RAM
+						char buffer[buffersize];
+						unsigned int i = 0;
+						while (i < buffersize && dataFile.available()) {
+							buffer[i++] = dataFile.read();
 						}
-						dataFile.close();
-					} else {
-						Serial.println("File doesn't exist");
+
+						// Send buffered data
+						enableEthernet();
+						unsigned int size = i;
+						for (i = 0; i < size; i++)
+							client.write(buffer[i]);
+
+						enableSD();
 					}
-
-					enableEthernet();
-
-					break;
+					dataFile.close();
+				} else {
+					Serial.println("File doesn't exist");
 				}
+
+				enableEthernet();
+
+				break;
 			}
 		}
 		// give the web browser time to receive the data
