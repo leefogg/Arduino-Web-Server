@@ -98,7 +98,7 @@ void readHTTPRequest(EthernetClient client) {
 		Request.HTTPMethod = HTTPMethod::Trace;
 	Request.File = line.substring(line.indexOf(' '), line.lastIndexOf(' '));
 
-	while ((line = readLine(client)).length() == 1) {
+	while ((line = readLine(client)).length() != 1) {
 		Serial.println(line);
 
 		if (line.indexOf("Connection: "))
