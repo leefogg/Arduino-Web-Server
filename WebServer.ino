@@ -73,6 +73,9 @@ void setup() {
 }
 
 void readHTTPRequest(EthernetClient client) {
+	Request.File = "";
+	Request.HTTPMethod = HTTPMethod::Get; // Assume get
+
 	String line = readLine(client);
 	if (line.indexOf("CONNECT"))
 		Request.HTTPMethod = HTTPMethod::Connect;
