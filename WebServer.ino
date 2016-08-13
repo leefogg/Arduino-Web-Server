@@ -85,10 +85,22 @@ String readLine(EthernetClient client) {
 	return out;
 }
 
-void readHTTPRequest(EthernetClient client) {
+void clearRequest() {
 	Request.File = "";
 	Request.Method = HTTPMethod::Get; // Assume get
 	Request.KeepAlive = false; // Close connection after by default
+}
+
+void clearResponse() {
+	Response.ContentLength = 0;
+	Response.ContentType = "text/html";
+	Response.KeepAlive = false;
+	Response.noContent = true;
+	Response.StatusCode = HTTPStatusCode::ClientError::BadRequest;
+}
+
+void readHTTPRequest(EthernetClient client) {
+	clearRequest();
 
 	String line = readLine(client);
 	Serial.println(line);
@@ -160,6 +172,8 @@ void loop() {
 				Serial.print("File: ");
 				Serial.println(Request.File);
 				Serial.println();
+
+				clearResponse();
 
 				Response.KeepAlive = Request.KeepAlive;
 				//TODO:
