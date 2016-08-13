@@ -133,6 +133,8 @@ void readHTTPRequest(EthernetClient client) {
 }
 
 void writeHTTPResponse(EthernetClient client) {
+	enableEthernet();
+
 	Serial.print("HTTP/1.0 ");
 	Serial.println(String(Response.StatusCode));
 	Serial.print("Content-Type: ");
@@ -152,6 +154,35 @@ void writeHTTPResponse(EthernetClient client) {
 	client.print("Content-Length: ");
 	client.println(String(Response.ContentLength));
 	client.println();
+}
+
+void dumpFile(String filepath, EthernetClient client) {
+	enableSD();
+
+	File file = SD.open(filepath);
+	// if the file is available, write to it:
+	if (file) {
+		while (file.available()) {
+			// Buffer the data
+			int const buffersize = 100; //TODO fill RAM
+			char buffer[buffersize];
+			unsigned int i = 0;
+			while (i < buffersize && file.available()) {
+				buffer[i++] = file.read();
+			}
+
+			// Send buffered data
+			enableEthernet();
+			unsigned int size = i;
+			for (i = 0; i < size; i++)
+				client.write(buffer[i]);
+
+			enableSD();
+		}
+		file.close();
+	} else {
+		Serial.println("File doesn't exist.");
+	}
 }
 
 void loop() {
@@ -200,36 +231,11 @@ void loop() {
 							file.close();
 						}
 					}
-
-					enableEthernet();
+					
 					writeHTTPResponse(client);
 
-					enableSD();
 					if (!Response.noContent) {
-						File file = SD.open(Request.File);
-						// if the file is available, write to it:
-						if (file) {
-							while (file.available()) {
-								// Buffer the data
-								int const buffersize = 100; //TODO fill RAM
-								char buffer[buffersize];
-								unsigned int i = 0;
-								while (i < buffersize && file.available()) {
-									buffer[i++] = file.read();
-								}
-
-								// Send buffered data
-								enableEthernet();
-								unsigned int size = i;
-								for (i = 0; i < size; i++)
-									client.write(buffer[i]);
-
-								enableSD();
-							}
-							file.close();
-						} else {
-							Serial.println("File doesn't exist.");
-						}
+						dumpFile(Request.File, client);
 					}
 				} else {
 					Response.noContent = true;
