@@ -32,7 +32,7 @@ void enableSD() {
 }
 
 struct HTTPRequest {
-	byte HTTPMethod;
+	byte Method;
 	String File;
 	boolean KeepAlive;
 	//TODO: Accepted types
@@ -40,8 +40,9 @@ struct HTTPRequest {
 struct HTTPResponse {
 	byte StatusCode;
 	boolean KeepAlive;
-	int ContentLength;
+	uint32_t ContentLength;
 	String ContentType;
+	boolean noContent;
 } Response;
 
 
@@ -72,40 +73,6 @@ void setup() {
 	Serial.println(Ethernet.localIP());
 }
 
-void readHTTPRequest(EthernetClient client) {
-	Request.File = "";
-	Request.HTTPMethod = HTTPMethod::Get; // Assume get
-	Request.KeepAlive = false; // Close connection after by default
-
-	String line = readLine(client);
-	Serial.println(line);
-
-	if (line.indexOf("CONNECT"))
-		Request.HTTPMethod = HTTPMethod::Connect;
-	if (line.indexOf("DELETE"))
-		Request.HTTPMethod = HTTPMethod::Delete;
-	if (line.indexOf("GET"))
-		Request.HTTPMethod = HTTPMethod::Get;
-	if (line.indexOf("HEAD"))
-		Request.HTTPMethod = HTTPMethod::Head;
-	if (line.indexOf("OPTIONS"))
-		Request.HTTPMethod = HTTPMethod::Options;
-	if (line.indexOf("POST"))
-		Request.HTTPMethod = HTTPMethod::Post;
-	if (line.indexOf("PUT"))
-		Request.HTTPMethod = HTTPMethod::Put;
-	if (line.indexOf("TRACE"))
-		Request.HTTPMethod = HTTPMethod::Trace;
-	Request.File = line.substring(line.indexOf(' '), line.lastIndexOf(' '));
-
-	while ((line = readLine(client)).length() != 1) {
-		Serial.println(line);
-
-		if (line.indexOf("Connection: "))
-			Request.KeepAlive = line.substring(line.indexOf(' ')) == "keep-alive";
-	}
-}
-
 String readLine(EthernetClient client) {
 	String out;
 	char in;
@@ -118,6 +85,63 @@ String readLine(EthernetClient client) {
 	return out;
 }
 
+void readHTTPRequest(EthernetClient client) {
+	Request.File = "";
+	Request.Method = HTTPMethod::Get; // Assume get
+	Request.KeepAlive = false; // Close connection after by default
+
+	String line = readLine(client);
+	Serial.println(line);
+
+	if (line.indexOf("GET") != -1)
+		Request.Method = HTTPMethod::Get;
+	else if (line.indexOf("HEAD") != -1)
+		Request.Method = HTTPMethod::Head;
+	else if (line.indexOf("POST") != -1)
+		Request.Method = HTTPMethod::Post;
+	else if (line.indexOf("PUT") != -1)
+		Request.Method = HTTPMethod::Put;
+	else if (line.indexOf("DELETE") != -1)
+		Request.Method = HTTPMethod::Delete;
+	else if (line.indexOf("CONNECT") != -1)
+		Request.Method = HTTPMethod::Connect;
+	else if (line.indexOf("OPTIONS") != -1)
+		Request.Method = HTTPMethod::Options;
+	else if (line.indexOf("TRACE") != -1)
+		Request.Method = HTTPMethod::Trace;
+
+	Request.File = line.substring(line.indexOf(' ')+1, line.lastIndexOf(' '));
+
+	while ((line = readLine(client)).length() != 1) {
+		Serial.println(line);
+
+		if (line.indexOf("Connection") != -1)
+			Request.KeepAlive = line.indexOf("keep-alive") != -1;
+	}
+}
+
+void writeHTTPResponse(EthernetClient client) {
+	Serial.print("HTTP/1.0 ");
+	Serial.println(String(Response.StatusCode));
+	Serial.print("Content-Type: ");
+	Serial.println(Response.ContentType);
+	Serial.print("Connection: ");
+	Serial.println(Response.KeepAlive ? "keep-alive" : "close");
+	Serial.print("Content-Length: ");
+	Serial.println(String(Response.ContentLength));
+	Serial.println();
+	
+	client.print("HTTP/1.0 ");
+	client.println(String(Response.StatusCode));
+	client.print("Content-Type: ");
+	client.println(Response.ContentType);
+	client.print("Connection: ");
+	client.println(Response.KeepAlive ? "keep-alive" : "close");
+	client.print("Content-Length: ");
+	client.println(String(Response.ContentLength));
+	client.println();
+}
+
 void loop() {
 	Ethernet.maintain();
 
@@ -128,37 +152,77 @@ void loop() {
 			if (client.available()) {
 				readHTTPRequest(client);
 
-				// send a standard http response header
-				client.println("HTTP/1.1 200 OK");
-				client.println("Content-Type: text/html");
-				client.println("Connection: Closed");// the connection will be closed after completion of the response
-				//client.println("Refresh: 5");// refresh the page automatically every 5 sec
-				client.println();
-		
-				enableSD();
-				File dataFile = SD.open("page.txt");
-				// if the file is available, write to it:
-				if (dataFile) {
-					while (dataFile.available()) {
-						// Buffer the data
-						int const buffersize = 100; //TODO fill RAM
-						char buffer[buffersize];
-						unsigned int i = 0;
-						while (i < buffersize && dataFile.available()) {
-							buffer[i++] = dataFile.read();
-						}
+				Serial.println();
+				Serial.print("Connection: ");
+				Serial.println(String(Request.KeepAlive));
+				Serial.print("Method: ");
+				Serial.println(String(Request.Method));
+				Serial.print("File: ");
+				Serial.println(Request.File);
+				Serial.println();
 
-						// Send buffered data
-						enableEthernet();
-						unsigned int size = i;
-						for (i = 0; i < size; i++)
-							client.write(buffer[i]);
+				Response.KeepAlive = Request.KeepAlive;
+				//TODO:
+				Response.ContentType = "text/html";
 
+				if (Request.Method == HTTPMethod::Get) {
+					//TODO: Support directory browsing
+					if (Request.File.indexOf('.') == -1) {// No file specified and directory browsing not supported
+						Response.StatusCode = HTTPStatusCode::ClientError::Unauthorized;
+						Response.noContent = true;
+					} else {
 						enableSD();
+						if (!SD.exists(Request.File)) {
+							Response.StatusCode = HTTPStatusCode::ClientError::NotFound;
+							Response.noContent = true;
+						} else {
+							Response.noContent = false;
+							Response.StatusCode = HTTPStatusCode::Success::OK;
+
+							File file = SD.open(Request.File);
+							if (file)
+								Response.ContentLength = file.size();
+
+							file.close();
+						}
 					}
-					dataFile.close();
+
+					enableEthernet();
+					writeHTTPResponse(client);
+
+					enableSD();
+					if (!Response.noContent) {
+						File file = SD.open(Request.File);
+						// if the file is available, write to it:
+						if (file) {
+							while (file.available()) {
+								// Buffer the data
+								int const buffersize = 100; //TODO fill RAM
+								char buffer[buffersize];
+								unsigned int i = 0;
+								while (i < buffersize && file.available()) {
+									buffer[i++] = file.read();
+								}
+
+								// Send buffered data
+								enableEthernet();
+								unsigned int size = i;
+								for (i = 0; i < size; i++)
+									client.write(buffer[i]);
+
+								enableSD();
+							}
+							file.close();
+						} else {
+							Serial.println("File doesn't exist.");
+						}
+					}
 				} else {
-					Serial.println("File doesn't exist");
+					Response.noContent = true;
+					Response.StatusCode = HTTPStatusCode::ClientError::MethodNotAllowed;
+					Response.ContentLength = 0;
+
+					writeHTTPResponse(client);
 				}
 
 				enableEthernet();
@@ -166,10 +230,12 @@ void loop() {
 				break;
 			}
 		}
+
+		client.flush();
 		// give the web browser time to receive the data
 		delay(1);
 		// close the connection:
 		client.stop();
-		Serial.println("client disconnected");
+		Serial.println("Client disconnected.");
 	}
 }

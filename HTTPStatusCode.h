@@ -10,12 +10,12 @@ namespace HTTPStatusCode {
 	namespace Success {
 		const byte
 			OK = 200,
-				Created = 201,
-				Accepted = 202,
-				NonAuthoritativeInformation = 203,
-				NoContent = 204,
-				ResetContent = 205,
-				PartialContent = 206;
+			Created = 201,
+			Accepted = 202,
+			NonAuthoritativeInformation = 203,
+			NoContent = 204,
+			ResetContent = 205,
+			PartialContent = 206;
 	}
 	namespace Redirection {
 		const byte
