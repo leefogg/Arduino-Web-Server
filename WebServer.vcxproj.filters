@@ -27,5 +27,8 @@
     <ClInclude Include="HTTPStatusCode.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="__vm\.Arduino-Web-Server.vsarduino.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

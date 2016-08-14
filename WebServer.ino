@@ -42,7 +42,6 @@ struct HTTPResponse {
 	boolean KeepAlive;
 	uint32_t ContentLength;
 	String ContentType;
-	boolean noContent;
 } Response;
 
 
@@ -89,7 +88,6 @@ void clearResponse() {
 	Response.ContentLength = 0;
 	Response.ContentType = "";
 	Response.KeepAlive = false;
-	Response.noContent = true;
 	Response.StatusCode = HTTPStatusCode::ClientError::BadRequest;
 }
 
@@ -152,7 +150,7 @@ void writeHTTPResponse(EthernetClient client) {
 
 void dumpFile(String filepath, EthernetClient client) {
 	enableSD();
-	byte const buffersize = 200; //TODO fill RAM
+	byte static const buffersize = 100;
 
 	File file = SD.open(filepath);
 	// if the file is available, write to it:
@@ -200,24 +198,22 @@ void loop() {
 				Response.KeepAlive = Request.KeepAlive;
 
 				if (Request.Method == HTTPMethod::Get) {
+					bool sendcontent = false;
 					//TODO: Support directory browsing
 					if (Request.File.indexOf('.') == -1) {// No file specified and directory browsing not supported
 						Response.StatusCode = HTTPStatusCode::ClientError::Unauthorized;
-						Response.noContent = true;
 					} else {
 						enableSD();
 						if (!SD.exists(Request.File)) {
 							Response.StatusCode = HTTPStatusCode::ClientError::NotFound;
-							Response.noContent = true;
 						} else {
-							Response.noContent = false;
+							sendcontent = true;
 							Response.StatusCode = HTTPStatusCode::Success::OK;
-							Response.ContentType = "image/bmp";
+							Response.ContentType = "text/html";
 
 							File file = SD.open(Request.File);
 							if (file)
 								Response.ContentLength = file.size();
-
 
 							file.close();
 						}
@@ -225,25 +221,25 @@ void loop() {
 					
 					writeHTTPResponse(client);
 
-					if (!Response.noContent) {
+					if (sendcontent) {
+						Serial.println("Dumping file");
 						dumpFile(Request.File, client);
+						Serial.println("File dumped.");
 					}
 				} else {
-					Response.noContent = true;
 					Response.StatusCode = HTTPStatusCode::ClientError::MethodNotAllowed;
 					Response.ContentLength = 0;
 
 					writeHTTPResponse(client);
 				}
 
-				enableEthernet();
-
-				break;
+				Serial.print(".");
 			}
 		}
 
 		client.flush();
 		// close the connection:
 		client.stop();
+		Serial.println("Client disconnected.");
 	}
 }
