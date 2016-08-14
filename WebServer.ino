@@ -241,11 +241,11 @@ void loop() {
 			}
 		}
 
+		Serial.println("Flushing data stream...");
 		client.flush();
-		// close the connection:
-		if (!Response.KeepAlive) {
-			client.stop();
-			Serial.println("Client disconnected.");
-		}
+
+		// Close the connection
+		client.stop();
+		Serial.println("Client disconnected.");
 	}
 }
