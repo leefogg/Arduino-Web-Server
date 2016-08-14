@@ -205,10 +205,12 @@ void loop() {
 					//TODO: Support directory browsing
 					if (Request.File.indexOf('.') == -1) {// No file specified and directory browsing not supported
 						Response.StatusCode = HTTPStatusCode::ClientError::Unauthorized;
+						Response.KeepAlive = false;
 					} else {
 						enableSD();
 						if (!SD.exists(Request.File)) {
 							Response.StatusCode = HTTPStatusCode::ClientError::NotFound;
+							Response.KeepAlive = false;
 						} else {
 							sendcontent = true;
 							Response.StatusCode = HTTPStatusCode::Success::OK;
@@ -230,6 +232,7 @@ void loop() {
 				} else {
 					Response.StatusCode = HTTPStatusCode::ClientError::MethodNotAllowed;
 					Response.ContentLength = 0;
+					Response.KeepAlive = false;
 
 					writeHTTPResponse(client);
 				}
@@ -240,7 +243,9 @@ void loop() {
 
 		client.flush();
 		// close the connection:
-		client.stop();
-
+		if (!Response.KeepAlive) {
+			client.stop();
+			Serial.println("Client disconnected.");
+		}
 	}
 }
