@@ -237,6 +237,7 @@ void loop() {
 					writeHTTPResponse(client);
 				}
 
+				enableEthernet();
 				break;
 			}
 		}
