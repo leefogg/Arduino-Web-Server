@@ -49,15 +49,10 @@ struct HTTPResponse {
 void setup() {
 	// Open serial communications and wait for port to open:
 	Serial.begin(250000);
-	while (!Serial) {
-		; // wait for serial port to connect. Needed for native USB port only
-	}
 
 	enableSD();
-	if (SD.begin(SDEnablePin)) {
-		Serial.println("Found SD card");
-	} else {
-		Serial.println("Card failed, or not present");
+	if (!SD.begin(SDEnablePin)) {
+		Serial.println("SD failed.");
 		return; // Cant continue if cant serve files
 		//TODO: Return appropriate response
 	}
@@ -68,7 +63,6 @@ void setup() {
 	Ethernet.begin(mac, ip);
 	server.begin();
 	server.available();
-	Serial.print("server is at ");
 	Serial.println(Ethernet.localIP());
 }
 
@@ -92,7 +86,7 @@ void clearRequest() {
 
 void clearResponse() {
 	Response.ContentLength = 0;
-	Response.ContentType = "text/html";
+	Response.ContentType = "";
 	Response.KeepAlive = false;
 	Response.StatusCode = HTTPStatusCode::ClientError::BadRequest;
 }
@@ -156,10 +150,6 @@ void writeHTTPResponse(EthernetClient client) {
 
 void dumpFile(String filepath, EthernetClient client) {
 	enableSD();
-<<<<<<< HEAD
-	byte static const buffersize = 100;
-=======
->>>>>>> parent of 6e14c18... Optimizations
 
 	File file = SD.open(filepath);
 	// if the file is available, write to it:
@@ -209,8 +199,6 @@ void loop() {
 				clearResponse();
 
 				Response.KeepAlive = Request.KeepAlive;
-				//TODO:
-				Response.ContentType = "text/html";
 
 				if (Request.Method == HTTPMethod::Get) {
 					bool sendcontent = false;
@@ -224,10 +212,7 @@ void loop() {
 						} else {
 							sendcontent = true;
 							Response.StatusCode = HTTPStatusCode::Success::OK;
-<<<<<<< HEAD
 							Response.ContentType = "text/html";
-=======
->>>>>>> parent of 6e14c18... Optimizations
 
 							File file = SD.open(Request.File);
 							if (file)
@@ -240,9 +225,7 @@ void loop() {
 					writeHTTPResponse(client);
 
 					if (sendcontent) {
-						Serial.println("Dumping file");
 						dumpFile(Request.File, client);
-						Serial.println("File dumped.");
 					}
 				} else {
 					Response.StatusCode = HTTPStatusCode::ClientError::MethodNotAllowed;
@@ -251,15 +234,13 @@ void loop() {
 					writeHTTPResponse(client);
 				}
 
-				Serial.print(".");
+				break;
 			}
 		}
 
 		client.flush();
-		// give the web browser time to receive the data
-		delay(1);
 		// close the connection:
 		client.stop();
-		Serial.println("Client disconnected.");
+
 	}
 }
