@@ -38,7 +38,7 @@ struct HTTPRequest {
 	//TODO: Accepted types
 } Request;
 struct HTTPResponse {
-	byte StatusCode;
+	unsigned int StatusCode;
 	boolean KeepAlive;
 	uint32_t ContentLength;
 	String ContentType;

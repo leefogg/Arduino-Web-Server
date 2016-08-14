@@ -8,7 +8,7 @@ namespace HTTPStatusCode {
 			SwitchingProtocols = 101;
 	}
 	namespace Success {
-		const byte
+		unsigned int const
 			OK = 200,
 			Created = 201,
 			Accepted = 202,
@@ -18,7 +18,7 @@ namespace HTTPStatusCode {
 			PartialContent = 206;
 	}
 	namespace Redirection {
-		const byte
+		unsigned int const
 			MultipleChoices = 300,
 			MovedPermanently = 301,
 			Found = 302,
@@ -29,7 +29,7 @@ namespace HTTPStatusCode {
 			TemporaryRedirect = 307;
 	}
 	namespace ClientError {
-		const byte
+		unsigned int const
 			BadRequest = 400,
 			Unauthorized = 401,
 			PaymentRequired = 402,
@@ -50,7 +50,7 @@ namespace HTTPStatusCode {
 			ExpectationFailed = 417;
 	}
 	namespace ServerError {
-		const byte
+		unsigned int const
 			InternalServerError = 500,
 			NotImplemented = 501,
 			BadGateway = 502,
