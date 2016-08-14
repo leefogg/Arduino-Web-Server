@@ -49,10 +49,15 @@ struct HTTPResponse {
 void setup() {
 	// Open serial communications and wait for port to open:
 	Serial.begin(250000);
+	while (!Serial) {
+		; // wait for serial port to connect. Needed for native USB port only
+	}
 
 	enableSD();
-	if (!SD.begin(SDEnablePin)) {
-		Serial.println("SD failed.");
+	if (SD.begin(SDEnablePin)) {
+		Serial.println("Found SD card");
+	} else {
+		Serial.println("Card failed, or not present");
 		return; // Cant continue if cant serve files
 		//TODO: Return appropriate response
 	}
@@ -63,6 +68,7 @@ void setup() {
 	Ethernet.begin(mac, ip);
 	server.begin();
 	server.available();
+	Serial.print("server is at ");
 	Serial.println(Ethernet.localIP());
 }
 
@@ -86,7 +92,7 @@ void clearRequest() {
 
 void clearResponse() {
 	Response.ContentLength = 0;
-	Response.ContentType = "";
+	Response.ContentType = "text/html";
 	Response.KeepAlive = false;
 	Response.StatusCode = HTTPStatusCode::ClientError::BadRequest;
 }
@@ -150,27 +156,34 @@ void writeHTTPResponse(EthernetClient client) {
 
 void dumpFile(String filepath, EthernetClient client) {
 	enableSD();
+<<<<<<< HEAD
 	byte static const buffersize = 100;
+=======
+>>>>>>> parent of 6e14c18... Optimizations
 
 	File file = SD.open(filepath);
 	// if the file is available, write to it:
 	if (file) {
-		// Buffer the data
-		char buffer[buffersize];
 		while (file.available()) {
-			file.readBytes(buffer, buffersize);
+			// Buffer the data
+			int const buffersize = 100; //TODO fill RAM
+			char buffer[buffersize];
+			unsigned int i = 0;
+			while (i < buffersize && file.available()) {
+				buffer[i++] = file.read();
+			}
 
 			// Send buffered data
 			enableEthernet();
-			for (byte i = 0; i < buffersize; i++)
+			unsigned int size = i;
+			for (i = 0; i < size; i++)
 				client.write(buffer[i]);
 
 			enableSD();
 		}
-
-		delete[] buffer;
-
 		file.close();
+	} else {
+		Serial.println("File doesn't exist.");
 	}
 }
 
@@ -196,6 +209,8 @@ void loop() {
 				clearResponse();
 
 				Response.KeepAlive = Request.KeepAlive;
+				//TODO:
+				Response.ContentType = "text/html";
 
 				if (Request.Method == HTTPMethod::Get) {
 					bool sendcontent = false;
@@ -209,7 +224,10 @@ void loop() {
 						} else {
 							sendcontent = true;
 							Response.StatusCode = HTTPStatusCode::Success::OK;
+<<<<<<< HEAD
 							Response.ContentType = "text/html";
+=======
+>>>>>>> parent of 6e14c18... Optimizations
 
 							File file = SD.open(Request.File);
 							if (file)
@@ -238,6 +256,8 @@ void loop() {
 		}
 
 		client.flush();
+		// give the web browser time to receive the data
+		delay(1);
 		// close the connection:
 		client.stop();
 		Serial.println("Client disconnected.");
