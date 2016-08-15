@@ -156,7 +156,7 @@ void dumpFile(String filepath, EthernetClient client) {
 	if (file) {
 		while (file.available()) {
 			// Buffer the data
-			int const buffersize = 100; //TODO fill RAM
+			int const buffersize = 1024*2; // Fill Ethernet shield's buffer
 			char buffer[buffersize];
 			unsigned int i = 0;
 			while (i < buffersize && file.available()) {
