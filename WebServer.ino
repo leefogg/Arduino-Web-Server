@@ -8,6 +8,7 @@
 
 #include "HTTPMethod.h"
 #include "HTTPStatusCode.h"
+#include "ContentType.h"
 
 // Enter a MAC address and IP address for your controller below.
 // The IP address will be dependent on your local network:
@@ -154,7 +155,9 @@ void dumpFile(String filepath, EthernetClient client) {
 	File file = SD.open(filepath);
 	// if the file is available, write to it:
 	if (file) {
+		Serial.println("Reading file..");
 		while (file.available()) {
+			Serial.println("Reading more.");
 			// Buffer the data
 			int const buffersize = 1024*2; // Fill Ethernet shield's buffer
 			char buffer[buffersize];
@@ -212,13 +215,16 @@ void loop() {
 							Response.StatusCode = HTTPStatusCode::ClientError::NotFound;
 							Response.KeepAlive = false;
 						} else {
-							sendcontent = true;
-							Response.StatusCode = HTTPStatusCode::Success::OK;
-							Response.ContentType = "text/html";
-
 							File file = SD.open(Request.File);
-							if (file)
+							if (file) {
 								Response.ContentLength = file.size();
+								Response.StatusCode = HTTPStatusCode::Success::OK;
+
+								String extension = Request.File.substring(Request.File.lastIndexOf('.') + 1);
+								extension.toLowerCase();
+								Response.ContentType = ContentType::getTypeFromExtension(extension);
+								sendcontent = true;
+							}
 
 							file.close();
 						}
