@@ -40,7 +40,7 @@ struct HTTPRequest {
 struct HTTPResponse {
 	unsigned int StatusCode;
 	boolean KeepAlive;
-	uint32_t ContentLength;
+	size_t ContentLength;
 	String ContentType;
 } Response;
 
@@ -208,22 +208,20 @@ void loop() {
 						Response.KeepAlive = false;
 					} else {
 						enableSD();
-						if (!SD.exists(Request.File)) {
+							
+						File file;
+						if (SD.exists(Request.File) && (file = SD.open(Request.File))) {
+							Response.ContentLength = file.size();
+							Response.StatusCode = HTTPStatusCode::Success::OK;
+
+							String extension = Request.File.substring(Request.File.lastIndexOf('.') + 1);
+							extension.toLowerCase();
+							Response.ContentType = ContentType::getTypeFromExtension(extension);
+							sendcontent = true;
+							file.close();
+						} else {
 							Response.StatusCode = HTTPStatusCode::ClientError::NotFound;
 							Response.KeepAlive = false;
-						} else {
-							File file = SD.open(Request.File);
-							if (file) {
-								Response.ContentLength = file.size();
-								Response.StatusCode = HTTPStatusCode::Success::OK;
-
-								String extension = Request.File.substring(Request.File.lastIndexOf('.') + 1);
-								extension.toLowerCase();
-								Response.ContentType = ContentType::getTypeFromExtension(extension);
-								sendcontent = true;
-							}
-
-							file.close();
 						}
 					}
 					
@@ -234,8 +232,6 @@ void loop() {
 					}
 				} else {
 					Response.StatusCode = HTTPStatusCode::ClientError::MethodNotAllowed;
-					Response.ContentLength = 0;
-					Response.KeepAlive = false;
 
 					writeHTTPResponse(client);
 				}
