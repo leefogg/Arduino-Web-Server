@@ -1,6 +1,5 @@
 #define EthernetEnablePin 10
 #define SDEnablePin 4
- 
 
 #include <SPI.h>
 #include <Ethernet.h>
@@ -154,30 +153,28 @@ void dumpFile(String filepath, EthernetClient client) {
 
 	File file = SD.open(filepath);
 	// if the file is available, write to it:
-	if (file) {
-		Serial.println("Reading file..");
-		while (file.available()) {
-			Serial.println("Reading more.");
-			// Buffer the data
-			int const buffersize = 1024*2; // Fill Ethernet shield's buffer
-			char buffer[buffersize];
-			unsigned int i = 0;
-			while (i < buffersize && file.available()) {
-				buffer[i++] = file.read();
-			}
-
-			// Send buffered data
-			enableEthernet();
-			unsigned int size = i;
-			for (i = 0; i < size; i++)
-				client.write(buffer[i]);
-
-			enableSD();
-		}
-		file.close();
-	} else {
+	if (!file) {
 		Serial.println("File doesn't exist.");
+		return;
 	}
+
+	Serial.println("Reading file..");
+	// Buffer the data
+	uint16_t const buffersize = 1024*2;
+	char buffer[buffersize];
+	while (file.available()) {
+		Serial.print("Reading ");
+		Serial.println(buffersize, DEC);
+
+		int bytesread = file.read(buffer, buffersize);
+
+		// Send buffered data
+		enableEthernet();
+		client.write(buffer, bytesread);
+
+		enableSD();
+	}
+	file.close();
 }
 
 void loop() {
