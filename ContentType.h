@@ -5,14 +5,14 @@ namespace ContentType {
 	const unsigned char numberOfTypes = 10;
 	const String extensions[numberOfTypes] = {
 		"txt",
-		"html",
+		"htm",
 		"css",
 		"js",
 		"ico",
 		"bmp",
-		"jpg"
+		"jpg",
 		"jpeg",
-		"png"
+		"png",
 		"gif"
 	};
 

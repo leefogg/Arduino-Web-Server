@@ -151,12 +151,17 @@ void writeResponseHeader(EthernetClient client) {
 void dumpFile(String filepath, EthernetClient client) {
 	enableSD();
 
+	Serial.print("Sending file ");
+	Serial.println(filepath);
 	File file = SD.open(filepath);
 	// if the file is available, write to it:
 	if (!file) {
-		Serial.println("File doesn't exist.");
+		Serial.println("File does't exist.");
 		return;
 	}
+
+	Response.ContentLength = file.size();
+	writeResponseHeader(client);
 
 	Serial.println("Reading file..");
 	// Buffer the data
@@ -177,73 +182,93 @@ void dumpFile(String filepath, EthernetClient client) {
 	file.close();
 }
 
+bool sendFile(String filepath, EthernetClient client) {
+	enableSD();
+
+	String extension = Request.File.substring(Request.File.lastIndexOf('.') + 1);
+	extension.toLowerCase();
+	Response.ContentType = ContentType::getTypeFromExtension(extension);
+	if (Response.ContentType.length() == 0) {
+		Response.StatusCode = HTTPStatusCode::ClientError::UnsupportedMediaType;
+		dumpFile("415.htm", client);
+		return false;
+	}
+
+	File file = SD.open(Request.File);
+	if (!file) {
+		Response.StatusCode = HTTPStatusCode::ClientError::NotFound;
+		Response.ContentType = "text/html";
+		dumpFile("404.htm", client);
+		return false;
+	}
+
+	// Passed checks
+	Response.StatusCode = HTTPStatusCode::Success::OK;
+	dumpFile(filepath, client);
+	file.close();
+
+	return true;
+}
+
 void loop() {
 	Ethernet.maintain();
 
 	// listen for incoming clients
 	EthernetClient client = server.available();
-	if (client) {
-		while (client.connected()) {
-			if (client.available()) {
-				readHTTPRequest(client);
+	if (!client)
+		return;
 
-				Serial.println();
-				Serial.print("Connection: ");
-				Serial.println(String(Request.KeepAlive));
-				Serial.print("Method: ");
-				Serial.println(String(Request.Method));
-				Serial.print("File: ");
-				Serial.println(Request.File);
-				Serial.println();
+	while (client.connected()) {
+		if (client.available()) {
+			readHTTPRequest(client);
 
-				clearResponse();
+			Serial.println();
+			Serial.print("Connection: ");
+			Serial.println(String(Request.KeepAlive));
+			Serial.print("Method: ");
+			Serial.println(String(Request.Method));
+			Serial.print("File: ");
+			Serial.println(Request.File);
+			Serial.println();
 
-				Response.KeepAlive = Request.KeepAlive;
+			clearResponse();
 
-				if (Request.Method == HTTPMethod::Get) {
-					bool sendcontent = false;
-					//TODO: Support directory browsing
-					if (Request.File.indexOf('.') == -1) {// No file specified and directory browsing not supported
-						Response.StatusCode = HTTPStatusCode::ClientError::Unauthorized;
-					} else {
-						enableSD();
-							
-						File file;
-						if (SD.exists(Request.File) && (file = SD.open(Request.File))) {
-							Response.ContentLength = file.size();
-							Response.StatusCode = HTTPStatusCode::Success::OK;
+			Response.KeepAlive = Request.KeepAlive;
 
-							String extension = Request.File.substring(Request.File.lastIndexOf('.') + 1);
-							extension.toLowerCase();
-							Response.ContentType = ContentType::getTypeFromExtension(extension);
-							sendcontent = true;
-							file.close();
-						} else {
-							Response.StatusCode = HTTPStatusCode::ClientError::NotFound;
-						}
-					}
-					
-					writeResponseHeader(client);
-
-					if (sendcontent) {
-						dumpFile(Request.File, client);
-					}
+			if (Request.Method == HTTPMethod::Get) {
+				bool sendcontent = false;
+				//TODO: Support directory browsing
+				if (Request.File.indexOf('.') == -1) {// No file specified and directory browsing not supported
+					Response.StatusCode = HTTPStatusCode::ClientError::Unauthorized;
 				} else {
-					Response.StatusCode = HTTPStatusCode::ClientError::MethodNotAllowed;
-
-					writeResponseHeader(client);
+					sendFile(Request.File, client);
 				}
+			} else {
+				Response.StatusCode = HTTPStatusCode::ClientError::MethodNotAllowed;
 
-				enableEthernet();
-				break;
+				writeResponseHeader(client);
 			}
+
+			Serial.println();
+			Serial.print("Content-length: ");
+			Serial.println(String(Response.ContentLength));
+			Serial.print("Content-type: ");
+			Serial.println(String(Response.ContentType));
+			Serial.print("Keep-Alive: ");
+			Serial.println(Response.KeepAlive);
+			Serial.print("StatusCode: ");
+			Serial.println(Response.StatusCode);
+			Serial.println();
+
+			enableEthernet();
+			break;
 		}
-
-		Serial.println("Flushing data stream...");
-		client.flush();
-
-		// Close the connection
-		client.stop();
-		Serial.println("Client disconnected.");
 	}
+
+	Serial.println("Flushing data stream...");
+	client.flush();
+
+	// Close the connection
+	client.stop();
+	Serial.println("Client disconnected.");
 }
