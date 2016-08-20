@@ -124,7 +124,7 @@ void readHTTPRequest(EthernetClient client) {
 	}
 }
 
-void writeHTTPResponse(EthernetClient client) {
+void writeResponseHeader(EthernetClient client) {
 	enableEthernet();
 
 	Serial.print("HTTP/1.0 ");
@@ -225,7 +225,7 @@ void loop() {
 						}
 					}
 					
-					writeHTTPResponse(client);
+					writeResponseHeader(client);
 
 					if (sendcontent) {
 						dumpFile(Request.File, client);
@@ -233,7 +233,7 @@ void loop() {
 				} else {
 					Response.StatusCode = HTTPStatusCode::ClientError::MethodNotAllowed;
 
-					writeHTTPResponse(client);
+					writeResponseHeader(client);
 				}
 
 				enableEthernet();
