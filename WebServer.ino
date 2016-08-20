@@ -205,7 +205,6 @@ void loop() {
 					//TODO: Support directory browsing
 					if (Request.File.indexOf('.') == -1) {// No file specified and directory browsing not supported
 						Response.StatusCode = HTTPStatusCode::ClientError::Unauthorized;
-						Response.KeepAlive = false;
 					} else {
 						enableSD();
 							
@@ -221,7 +220,6 @@ void loop() {
 							file.close();
 						} else {
 							Response.StatusCode = HTTPStatusCode::ClientError::NotFound;
-							Response.KeepAlive = false;
 						}
 					}
 					
