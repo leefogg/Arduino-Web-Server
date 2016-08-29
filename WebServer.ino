@@ -15,7 +15,6 @@
 byte mac[] = {
 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED
 };
-IPAddress ip(192, 168, 0, 16);
 
 // Initialize the Ethernet server
 // (port 80 is default for HTTP):
@@ -44,8 +43,6 @@ struct HTTPResponse {
 	String ContentType;
 } Response;
 
-
-
 void setup() {
 	// Open serial communications and wait for port to open:
 	Serial.begin(250000);
@@ -57,10 +54,9 @@ void setup() {
 		//TODO: Return appropriate response
 	}
 
-
 	enableEthernet();
 	// start the Ethernet connection and the server:
-	Ethernet.begin(mac, ip);
+	Ethernet.begin(mac);
 	server.begin();
 	server.available();
 	Serial.println(Ethernet.localIP());
