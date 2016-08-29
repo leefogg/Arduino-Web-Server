@@ -148,17 +148,46 @@ void writeResponseHeader(EthernetClient client) {
 	client.println();
 }
 
+String combinePaths(String path1, String path2) {
+	if (path1.endsWith("/"))
+		return path1 + path2;
+	else
+		return path1 + "/" + path2;
+}
+
+void writeToEthernet(String text, EthernetClient client) {
+	enableEthernet();
+	for (unsigned int i = 0; i < text.length(); i++)
+		client.write(text[i]);
+}
+void writeToEthernet(byte* data, unsigned int size, EthernetClient client) {
+	enableEthernet();
+
+	unsigned int dataremaining = size;
+	while (dataremaining > 0) {
+		unsigned int datatosend = (dataremaining < 2048) ? dataremaining : 2048;
+
+		client.write(data, datatosend);
+		data += datatosend;
+		dataremaining -= datatosend;
+	}
+}
+
 void dumpFile(String filepath, EthernetClient client) {
 	enableSD();
 
-	Serial.print("Sending file ");
-	Serial.println(filepath);
 	File file = SD.open(filepath);
-	// if the file is available, write to it:
 	if (!file) {
-		Serial.println("File does't exist.");
+		Serial.println("File does't exist!");
 		return;
 	}
+	Serial.print("Sending file ");
+	Serial.println(filepath);
+	dumpFile(file, client);
+	file.close();
+}
+void dumpFile(File file, EthernetClient client) {
+	enableSD();
 
 	Response.ContentLength = file.size();
 	writeResponseHeader(client);
@@ -169,9 +198,13 @@ void dumpFile(String filepath, EthernetClient client) {
 	char buffer[buffersize];
 	while (file.available()) {
 		Serial.print("Reading ");
-		Serial.println(buffersize, DEC);
+		Serial.print(buffersize, DEC);
+		Serial.print(" bytes...");
 
 		int bytesread = file.read(buffer, buffersize);
+		Serial.print(" Read ");
+		Serial.print(bytesread, DEC);
+		Serial.println(" bytes.");
 
 		// Send buffered data
 		enableEthernet();
@@ -179,22 +212,23 @@ void dumpFile(String filepath, EthernetClient client) {
 
 		enableSD();
 	}
-	file.close();
 }
 
 bool sendFile(String filepath, EthernetClient client) {
 	enableSD();
 
-	String extension = Request.File.substring(Request.File.lastIndexOf('.') + 1);
+	String extension = filepath.substring(filepath.lastIndexOf('.') + 1);
 	extension.toLowerCase();
-	Response.ContentType = ContentType::getTypeFromExtension(extension);
-	if (Response.ContentType.length() == 0) {
+	String contenttype = ContentType::getTypeFromExtension(extension);
+
+	if (contenttype.length() == 0) {
 		Response.StatusCode = HTTPStatusCode::ClientError::UnsupportedMediaType;
+		Response.ContentType = "text/html";
 		dumpFile("415.htm", client);
 		return false;
 	}
 
-	File file = SD.open(Request.File);
+	File file = SD.open(filepath);
 	if (!file) {
 		Response.StatusCode = HTTPStatusCode::ClientError::NotFound;
 		Response.ContentType = "text/html";
@@ -204,10 +238,63 @@ bool sendFile(String filepath, EthernetClient client) {
 
 	// Passed checks
 	Response.StatusCode = HTTPStatusCode::Success::OK;
-	dumpFile(filepath, client);
+	Response.ContentType = contenttype;
+	dumpFile(file, client);
 	file.close();
 
 	return true;
+}
+
+void showDirectoryListing(String path, EthernetClient client) { // TODO: Fix file listing changing bug
+	enableSD();
+
+	File folder = SD.open(path);
+	if (!folder) {
+		Response.StatusCode = HTTPStatusCode::ClientError::NotFound;
+		Response.ContentType = "text/html";
+		dumpFile("404.htm", client);
+		return;
+	}
+	if (!folder.isDirectory()) {
+		//TODO: Send appropriate response code
+	}
+
+	Response.StatusCode = HTTPStatusCode::Success::OK;
+	Response.ContentType = "text/html";
+	String content = "<HTML><HEAD><TITLE>" + Request.File + "</TITLE></HEAD><BODY><h1>Index of "+path+"</H1><TABLE><TR><TH>Name</TD><TH>Type</TD><TH>Size</TD></TR>";
+
+	File file;
+	while (file = folder.openNextFile()) {
+		content += "<TR>";
+		content += "<TD><A href = \"";
+		String filename = file.name();
+		content += combinePaths(path, filename);
+		content += "\">";
+		content += filename;
+		content += "</A></TD>";
+		String fileextension = filename.substring(filename.lastIndexOf('.') + 1);
+		fileextension.toLowerCase();
+		String contenttype = ContentType::getTypeFromExtension(fileextension);
+		content += "<TD>";
+		if (contenttype.length() != 0) {
+			content += contenttype;
+		} else {
+			content += "unknown";
+		}
+		content += "</TD>";
+		content += "<TD>";
+		content += file.size();
+		content += "</TD>";
+		content += "<TR>";
+		file.close();
+	}
+	folder.close();
+	
+	content += "</TABLE></BODY></HTML>";
+	Response.ContentLength = content.length();
+	
+	writeResponseHeader(client);
+	writeToEthernet(content, client);
 }
 
 void loop() {
@@ -237,9 +324,8 @@ void loop() {
 
 			if (Request.Method == HTTPMethod::Get) {
 				bool sendcontent = false;
-				//TODO: Support directory browsing
-				if (Request.File.indexOf('.') == -1) {// No file specified and directory browsing not supported
-					Response.StatusCode = HTTPStatusCode::ClientError::Unauthorized;
+				if (Request.File.indexOf('.') == -1) { // Requested a folder of file without extension
+					showDirectoryListing(Request.File, client);
 				} else {
 					sendFile(Request.File, client);
 				}
