@@ -8,6 +8,7 @@
 #include "HTTPMethod.h"
 #include "HTTPStatusCode.h"
 #include "ContentType.h"
+#include "Path.h"
 
 // Enter a MAC address and IP address for your controller below.
 // The IP address will be dependent on your local network:
@@ -16,8 +17,7 @@ byte mac[] = {
 };
 IPAddress ip(192, 168, 0, 16);
 
-// Initialize the Ethernet server library
-// with the IP address and port you want to use
+// Initialize the Ethernet server
 // (port 80 is default for HTTP):
 EthernetServer server(80);
 
@@ -148,13 +148,6 @@ void writeResponseHeader(EthernetClient client) {
 	client.println();
 }
 
-String combinePaths(String path1, String path2) {
-	if (path1.endsWith("/"))
-		return path1 + path2;
-	else
-		return path1 + "/" + path2;
-}
-
 void writeToEthernet(String text, EthernetClient client) {
 	enableEthernet();
 	for (unsigned int i = 0; i < text.length(); i++)
@@ -178,7 +171,7 @@ void dumpFile(String filepath, EthernetClient client) {
 
 	File file = SD.open(filepath);
 	if (!file) {
-		Serial.println("File does't exist!");
+		Serial.println("File doesn't exist!");
 		return;
 	}
 	Serial.print("Sending file ");
@@ -217,7 +210,7 @@ void dumpFile(File file, EthernetClient client) {
 bool sendFile(String filepath, EthernetClient client) {
 	enableSD();
 
-	String extension = filepath.substring(filepath.lastIndexOf('.') + 1);
+	String extension = Path::getFileExtension(filepath);
 	extension.toLowerCase();
 	String contenttype = ContentType::getTypeFromExtension(extension);
 
@@ -268,11 +261,11 @@ void showDirectoryListing(String path, EthernetClient client) { // TODO: Fix fil
 		content += "<TR>";
 		content += "<TD><A href = \"";
 		String filename = file.name();
-		content += combinePaths(path, filename);
+		content += Path::combinePaths(path, filename);
 		content += "\">";
 		content += filename;
 		content += "</A></TD>";
-		String fileextension = filename.substring(filename.lastIndexOf('.') + 1);
+		String fileextension = Path::getFileExtension(filename);
 		fileextension.toLowerCase();
 		String contenttype = ContentType::getTypeFromExtension(fileextension);
 		content += "<TD>";
@@ -323,8 +316,7 @@ void loop() {
 			Response.KeepAlive = Request.KeepAlive;
 
 			if (Request.Method == HTTPMethod::Get) {
-				bool sendcontent = false;
-				if (Request.File.indexOf('.') == -1) { // Requested a folder of file without extension
+				if (!Path::hasFile(Request.File)) { // Requested a folder or file without extension
 					showDirectoryListing(Request.File, client);
 				} else {
 					sendFile(Request.File, client);
