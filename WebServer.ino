@@ -63,15 +63,7 @@ void setup() {
 }
 
 String readLine(EthernetClient client) {
-	String out;
-	char in;
-	while (client.available())
-		if ((in = client.read()) != '\n')
-			out += in;
-		else
-			break;
-
-	return out;
+	return client.readStringUntil('\n');
 }
 
 void clearRequest() {
