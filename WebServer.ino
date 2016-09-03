@@ -334,7 +334,7 @@ void showDirectoryListing(String path, EthernetClient client) { // TODO: Fix fil
 		content += "<TR>";
 		content += "<TD><A href = \"";
 		String filename = file.name();
-		content += Path::combinePaths(path, filename);
+		content += filename;
 		content += "\">";
 		content += filename;
 		content += "</A></TD>";
