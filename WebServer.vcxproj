@@ -125,11 +125,13 @@
     <ClInclude Include="ContentType.h" />
     <ClInclude Include="HTTPMethod.h" />
     <ClInclude Include="HTTPStatusCode.h" />
+    <ClInclude Include="Path.h" />
     <ClInclude Include="__vm\.Arduino-Web-Server.vsarduino.h" />
     <ClInclude Include="__vm\.WebServer.vsarduino.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ContentType.cpp" />
+    <ClCompile Include="Path.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
