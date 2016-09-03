@@ -178,6 +178,7 @@ void writeResponseHeader(EthernetClient client) {
 /// <summary>
 /// Writes a string of unknown length to the client.
 /// Use array version for performance reasons.
+/// Currently benchmarked at 1282 bytes per second
 /// </summary>
 void writeToEthernet(String text, EthernetClient client) {
 	enableEthernet();
@@ -189,7 +190,7 @@ void writeToEthernet(String text, EthernetClient client) {
 }
 /// <summary>
 /// Writes an array of bytes to the client.
-/// Currently benchmarked at 41KB per second.
+/// Currently benchmarked at 58KB per second.
 /// </summary>
 void writeToEthernet(byte* data, unsigned int size, EthernetClient client) {
 	enableEthernet();
@@ -200,11 +201,13 @@ void writeToEthernet(byte* data, unsigned int size, EthernetClient client) {
 		unsigned int datatosend = (dataremaining < EthernetBufferSize) ? dataremaining : EthernetBufferSize;
 
 		client.write(data, datatosend);
-		//TODO: flush
 
-		// Count how much data is remaining to be sent
+		// Move pointer to point to next data in list
 		data += datatosend;
+		// Count how much data is remaining to be sent
 		dataremaining -= datatosend;
+
+		client.flush();
 	}
 }
 
@@ -240,19 +243,18 @@ void dumpFile(File file, EthernetClient client) {
 
 	Serial.println("Reading file..");
 	// Ethernet controller has an internal buffer
-	uint16_t const buffersize = EthernetBufferSize;
-	char buffer[buffersize];
+	char buffer[EthernetBufferSize];
 	while (file.available()) {
 		Serial.print("Reading ");
-		Serial.print(buffersize, DEC);
+		Serial.print(EthernetBufferSize, DEC);
 		Serial.print(" bytes...");
-		// Read next 2K into RAM while ethernet controller is sending
-		int bytesread = file.read(buffer, buffersize);
+		// Read buffer into RAM while ethernet controller is sending
+		int bytesread = file.read(buffer, EthernetBufferSize);
 		Serial.print(" Read ");
 		Serial.print(bytesread, DEC);
 		Serial.println(" bytes.");
 
-		// TODO: Flush
+		client.flush();
 
 		// Send buffered data to controller
 		enableEthernet();
