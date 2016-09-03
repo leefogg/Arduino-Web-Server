@@ -10,7 +10,7 @@
 // Chip Select pins for SD card and Ethernet driver on Arduino's Ethernet Shield.
 #define EthernetEnablePin 10
 #define SDEnablePin 4
-//TODO: define EthernetBufferSize 1024*2
+#define EthernetBufferSize 1024*2
 
 // Initialize the Ethernet server
 // port 80 is default for HTTP
@@ -197,7 +197,7 @@ void writeToEthernet(byte* data, unsigned int size, EthernetClient client) {
 	unsigned int dataremaining = size;
 	while (dataremaining > 0) {
 		// Limit sent data to ethernet controllers buffer size
-		unsigned int datatosend = (dataremaining < 2048) ? dataremaining : 2048;
+		unsigned int datatosend = (dataremaining < EthernetBufferSize) ? dataremaining : EthernetBufferSize;
 
 		client.write(data, datatosend);
 		//TODO: flush
@@ -239,8 +239,8 @@ void dumpFile(File file, EthernetClient client) {
 	writeResponseHeader(client);
 
 	Serial.println("Reading file..");
-	// Ethernet controller has a 2048 byte buffer
-	uint16_t const buffersize = 1024*2;
+	// Ethernet controller has an internal buffer
+	uint16_t const buffersize = EthernetBufferSize;
 	char buffer[buffersize];
 	while (file.available()) {
 		Serial.print("Reading ");
@@ -333,12 +333,12 @@ void showDirectoryListing(String path, EthernetClient client) { // TODO: Fix fil
 	while (file = folder.openNextFile()) { // Open each file in folder
 		content += "<TR>";
 		content += "<TD><A href = \"";
-		String filename = file.name();
-		content += filename;
+		String filepath = file.name();
+		content += filepath;
 		content += "\">";
-		content += filename;
+		content += filepath;
 		content += "</A></TD>";
-		String fileextension = Path::getFileExtension(filename);
+		String fileextension = Path::getFileExtension(filepath);
 		fileextension.toLowerCase();
 		String contenttype = ContentType::getTypeFromExtension(fileextension);
 		content += "<TD>";
