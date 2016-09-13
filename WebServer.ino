@@ -53,35 +53,27 @@ struct HTTPResponse {
 	String ContentType;
 } Response;
 
-void setup() {
-	// Open serial communications and wait for port to open:
-	Serial.begin(250000);
-
-	enableSD();
-	if (!SD.begin(SDEnablePin)) {
-		Serial.println("SD failed.");
-		return; // Cant continue if cant serve files
-		//TODO: Return appropriate response
-	}
-
-	enableEthernet();
-	// Enter a unique MAC address below. This only has to be unique on the network.
-	byte macaddress[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
-	// Start up the ethernet driver with MAC address and find the first available IP on network.
-	Ethernet.begin(macaddress);
-	server.begin();
-	server.available();
-	// Display the IP the web server is accessable on via the serial port.
-	Serial.println(Ethernet.localIP());
+void DebugRequest() {
+	Serial.println();
+	Serial.print("Keep Alive: ");
+	Serial.println(Request.KeepAlive ? "Yes" : "No");
+	Serial.print("Method: ");
+	Serial.println(String(Request.Method));
+	Serial.print("File: ");
+	Serial.println(Request.File);
+	Serial.println();
 }
 
-/// <summary>
-/// Gets a line of data from the client.
-/// Assumes the ethernet controller is active.
-/// </summary>
-/// <returns>The next available line of data</returns>
-String readLine(EthernetClient client) {
-	return client.readStringUntil('\n');
+void DebugResponse() {
+	Serial.print("HTTP/1.0 ");
+	Serial.println(String(Response.StatusCode));
+	Serial.print("Content-Type: ");
+	Serial.println(Response.ContentType);
+	Serial.print("Connection: ");
+	Serial.println(Response.KeepAlive ? "keep-alive" : "close");
+	Serial.print("Content-Length: ");
+	Serial.println(String(Response.ContentLength));
+	Serial.println();
 }
 
 /// <summary>
@@ -103,6 +95,53 @@ void clearResponse() {
 	Response.StatusCode = HTTPStatusCode::ClientError::BadRequest;
 }
 
+
+void setup() {
+	// Open serial communications and wait for port to open:
+	Serial.begin(250000);
+	while (!Serial) { } // Wait until serial port is ready
+	
+	Serial.println("Starting up...");
+
+	Serial.print("Loading File System...");
+	enableSD();
+	if (SD.begin(SDEnablePin)) {
+		Serial.println("Success.");
+	} else {
+		Serial.println("Failed.");
+		return; // Cant continue if cant serve files
+	}
+
+	Serial.print("Loading Ethernet driver...");
+	enableEthernet();
+	// Enter a unique MAC address below. This only has to be unique on the network.
+	byte macaddress[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
+	// Start up the ethernet driver with MAC address and find the first available IP on network.
+	if (Ethernet.begin(macaddress)) {
+		Serial.println("Success.");
+
+		Serial.print("Starting Network service...");
+		server.begin();
+		Serial.println("Success.");
+
+		// Display the IP the web server is accessable on via the serial port.
+		Serial.print("IP address is: ");
+		Serial.println(Ethernet.localIP());
+	} else {
+		Serial.println("Fail.");
+		return;
+	}
+}
+
+/// <summary>
+/// Gets a line of data from the client.
+/// Assumes the ethernet controller is active.
+/// </summary>
+/// <returns>The next available line of data</returns>
+String readLine(EthernetClient client) {
+	return client.readStringUntil('\n');
+}
+
 /// <summary>
 /// Interprets the incoming HTTP request header and fills the request struct.
 /// </summary>
@@ -110,7 +149,6 @@ void readHTTPRequest(EthernetClient client) {
 	clearRequest();
 
 	String line = readLine(client);
-	Serial.println(line);
 
 	if (line.indexOf("GET") != -1)
 		Request.Method = HTTPMethod::Get;
@@ -132,21 +170,12 @@ void readHTTPRequest(EthernetClient client) {
 	Request.File = line.substring(line.indexOf(' ')+1, line.lastIndexOf(' '));
 
 	while ((line = readLine(client)).length() != 1) {
-		Serial.println(line);
-
 		if (line.indexOf("Connection") != -1)
 			Request.KeepAlive = line.indexOf("keep-alive") != -1;
 	}
 
 	// Show read request information
-	Serial.println();
-	Serial.print("Connection: ");
-	Serial.println(String(Request.KeepAlive));
-	Serial.print("Method: ");
-	Serial.println(String(Request.Method));
-	Serial.print("File: ");
-	Serial.println(Request.File);
-	Serial.println();
+	DebugRequest();
 }
 
 /// <summary>
@@ -154,19 +183,7 @@ void readHTTPRequest(EthernetClient client) {
 /// </summary>
 void writeResponseHeader(EthernetClient client) {
 	enableEthernet();
-
-	Serial.print("HTTP/1.0 ");
-	Serial.println(String(Response.StatusCode));
-	Serial.print("Content-Type: ");
-	Serial.println(Response.ContentType);
-	Serial.print("Connection: ");
-	Serial.println(Response.KeepAlive ? "keep-alive" : "close");
-	Serial.print("Content-Length: ");
-	Serial.println(String(Response.ContentLength));
-	Serial.println();
 	
-	// Confirm what was written to the client by echoing in serial port
-	// TODO: Dont duplicate above, write exact string that was written to client to serial.
 	client.print("HTTP/1.0 ");
 	client.println(String(Response.StatusCode));
 	client.print("Content-Type: ");
@@ -176,6 +193,10 @@ void writeResponseHeader(EthernetClient client) {
 	client.print("Content-Length: ");
 	client.println(String(Response.ContentLength));
 	client.println();
+
+	// Confirm what was written to the client by echoing in serial port
+	// TODO: Dont duplicate above, write exact string that was written to client to serial.
+	DebugResponse();
 }
 
 /// <summary>
@@ -333,6 +354,7 @@ void showDirectoryListing(String path, EthernetClient client) { // TODO: Fix fil
 	}
 
 	// Passed validation checks
+	Serial.println("Showing directory listing.");
 	Response.StatusCode = HTTPStatusCode::Success::OK;
 	Response.ContentType = "text/html";
 
@@ -397,6 +419,7 @@ void loop() {
 			// If file was requested
 			if (Request.Method == HTTPMethod::Get) { // Server only supports Get requests currently
 				if (!Path::hasFile(Request.File)) { // Requested a folder or file without extension
+					// TODO: Enable directory browsing config setting
 					showDirectoryListing(Request.File, client);
 				} else {
 					sendFile(Request.File, client);
