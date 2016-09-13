@@ -12,6 +12,9 @@
 #define SDEnablePin 4
 #define EthernetBufferSize 1024*2
 
+// (Hidden) folder used for settings and other system files
+const String systemFolder = "_system/";
+
 // Initialize the Ethernet server
 // port 80 is default for HTTP
 EthernetServer server(80);
@@ -219,13 +222,13 @@ void dumpFile(String filepath, EthernetClient client) {
 	//TODO: Return if file was sent
 	enableSD();
 
+	Serial.print("Sending file: ");
+	Serial.println(filepath);
 	File file = SD.open(filepath);
 	if (!file) {
 		Serial.println("File doesn't exist!");
 		return;
 	}
-	Serial.print("Sending file ");
-	Serial.println(filepath);
 	dumpFile(file, client);
 	file.close();
 }
@@ -276,23 +279,27 @@ void dumpFile(File file, EthernetClient client) {
 bool sendFile(String filepath, EthernetClient client) {
 	enableSD();
 
+	Serial.print("Requested File: ");
+	Serial.println(filepath);
 	// Show Unsupported Media Type page if unknown file extension
 	String extension = Path::getFileExtension(filepath);
 	extension.toLowerCase();
 	String contenttype = ContentType::getTypeFromExtension(extension);
 	if (contenttype.length() == 0) {
+		Serial.println("Unknown MIME Type");
 		Response.StatusCode = HTTPStatusCode::ClientError::UnsupportedMediaType;
 		Response.ContentType = "text/html";
-		dumpFile("415.htm", client);
+		dumpFile(systemFolder + "415.htm", client);
 		return false;
 	}
 
 	// Show 404 page if file not found.
 	File file = SD.open(filepath);
 	if (!file) {
+		Serial.println("File not found.");
 		Response.StatusCode = HTTPStatusCode::ClientError::NotFound;
 		Response.ContentType = "text/html";
-		dumpFile("404.htm", client);
+		dumpFile(systemFolder + "404.htm", client);
 		return false;
 	}
 
@@ -314,10 +321,11 @@ void showDirectoryListing(String path, EthernetClient client) { // TODO: Fix fil
 	enableSD();
 
 	File folder = SD.open(path);
-	if (!folder) { // Open return null if file could not be found
+	if (!folder) { // Open returns null if file could not be found
+		Serial.println("File not found.");
 		Response.StatusCode = HTTPStatusCode::ClientError::NotFound;
 		Response.ContentType = "text/html";
-		dumpFile("404.htm", client);
+		dumpFile(systemFolder + "404.htm", client);
 		return;
 	}
 	if (!folder.isDirectory()) {
