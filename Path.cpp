@@ -36,6 +36,13 @@ String Path::normalisePath(String path) {
 	return newpath;
 }
 
+String Path::makeAbsolute(String path) {
+	if (path.startsWith("/"))
+		return path;
+
+	return "/" + path;
+}
+
 /// <summary>
 /// Checks whether path mentions a file
 /// </summary>

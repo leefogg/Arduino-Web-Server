@@ -7,6 +7,8 @@ namespace Path {
 
 	String normalisePath(String path);
 
+	String makeAbsolute(String path);
+
 	bool hasFile(String path);
 
 	String getFileName(String path);
