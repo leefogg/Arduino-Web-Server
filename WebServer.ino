@@ -335,10 +335,11 @@ void showDirectoryListing(String path, EthernetClient client) { // TODO: Fix fil
 	while (file = folder.openNextFile()) { // Open each file in folder
 		content += "<TR>";
 		content += "<TD><A href = \"";
-		String filepath = file.name();
+		String filename = file.name();
+		String filepath = Path::combinePaths(path, filename);
 		content += filepath;
 		content += "\">";
-		content += filepath;
+		content += filename;
 		content += "</A></TD>";
 		String fileextension = Path::getFileExtension(filepath);
 		fileextension.toLowerCase();
