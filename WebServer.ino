@@ -133,21 +133,12 @@ void setup() {
 }
 
 /// <summary>
-/// Gets a line of data from the client.
-/// Assumes the ethernet controller is active.
-/// </summary>
-/// <returns>The next available line of data</returns>
-String readLine(EthernetClient client) {
-	return client.readStringUntil('\n');
-}
-
-/// <summary>
 /// Interprets the incoming HTTP request header and fills the request struct.
 /// </summary>
 void readHTTPRequest(EthernetClient client) {
 	clearRequest();
 
-	String line = readLine(client);
+	String line = client.readStringUntil('\n');
 
 	if (line.indexOf("GET") != -1)
 		Request.Method = HTTPMethod::Get;
@@ -168,7 +159,7 @@ void readHTTPRequest(EthernetClient client) {
 
 	Request.File = line.substring(line.indexOf(' ')+1, line.lastIndexOf(' '));
 
-	while ((line = readLine(client)).length() != 1) {
+	while ((line = client.readStringUntil('\n')).length() != 1) {
 		if (line.indexOf("Connection") != -1)
 			Request.KeepAlive = line.indexOf("keep-alive") != -1;
 	}
@@ -212,6 +203,7 @@ void writeToEthernet(String text, EthernetClient client) {
 	for (unsigned int i = 0; i < text.length(); i++)
 		client.write(text[i]);
 }
+
 /// <summary>
 /// Writes an array of bytes to the client.
 /// Currently benchmarked at 58KB per second.
@@ -307,7 +299,7 @@ bool sendFile(String filepath, EthernetClient client) {
 	String extension = Path::getFileExtension(filepath);
 	extension.toLowerCase();
 	String contenttype = ContentType::getTypeFromExtension(extension);
-	if (contenttype.length() == 0) {
+	if (contenttype.length() == 0) { // No media type found on look-up
 		Serial.println("Unknown MIME Type");
 		Response.StatusCode = HTTPStatusCode::ClientError::UnsupportedMediaType;
 		Response.ContentType = "text/html";

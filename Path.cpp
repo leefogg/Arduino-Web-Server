@@ -1,7 +1,8 @@
 #pragma once
 #include <WString.h>
-
 #include "Path.h"
+
+const String empty = "";
 
 /// <summary>
 /// Appends path2 to path1, ensuring a valid path format
@@ -21,7 +22,7 @@ String Path::combinePaths(String path1, String path2) {
 String Path::normalisePath(String path) {
 	String newpath = path; // Make a copy in case string is readonly
 
-	newpath.replace("\\", "/");
+	newpath.replace('\\', '/');
 
 	if (newpath.startsWith("/")) {
 		newpath = newpath.substring(1);
@@ -31,7 +32,7 @@ String Path::normalisePath(String path) {
 		return newpath;
 
 	if (!newpath.endsWith("/"))
-		newpath = newpath + "/";
+		newpath += '/';
 
 	return newpath;
 }
@@ -40,7 +41,7 @@ String Path::makeAbsolute(String path) {
 	if (path.startsWith("/"))
 		return path;
 
-	return "/" + path;
+	return '/' + path;
 }
 
 /// <summary>
@@ -59,9 +60,9 @@ bool Path::hasFile(String path) {
 String Path::getFileName(String path) {
 	path = normalisePath(path);
 	if (!hasFile(path))
-		return "";
+		return empty;
 
-	return path.substring(path.lastIndexOf("\\") + 1);
+	return path.substring(path.lastIndexOf('\\') + 1);
 }
 
 /// <summary>
@@ -70,7 +71,7 @@ String Path::getFileName(String path) {
 /// <returns>The file's extension or an empty string if no file is found in string</return>
 String Path::getFileExtension(String path) {
 	if (!Path::hasFile(path))
-		return "";
+		return empty;
 
-	return path.substring(path.lastIndexOf(".") + 1);
+	return path.substring(path.lastIndexOf('.') + 1);
 }
