@@ -249,7 +249,7 @@ bool isDirectory(String filepath) {
 /// <param name="filepath">The absolute file path of a file on the SD card.</param>
 /// <returns>True if the requested file is a file</returns>
 bool isFile(String filepath) {
-	return !isdirectory(filepath);
+	return !isDirectory(filepath);
 }
 
 /// <summary>
@@ -415,6 +415,22 @@ void showDirectoryListing(String path, EthernetClient client) { // TODO: Fix fil
 	writeToEthernet(content, client);
 }
 
+void handleGetRequest(EthernetClient client) {
+	if (isFile(Request.File)) {
+		sendFile(Request.File, client);
+	} else {
+		// Look for default pages
+		// TODO: Default pages list
+		if (SD.exists(Path::normalisePath(Request.File) + "index.htm")) {
+			sendFile(Path::normalisePath(Request.File) + "index.htm", client);
+			return;
+		}
+
+		// TODO: Enable directory browsing config setting
+		showDirectoryListing(Request.File, client);
+	}
+}
+
 /// <summary>
 /// Main loop which maintains Ethernet services and listens for incoming requests.
 /// </summary>
@@ -436,12 +452,7 @@ void loop() {
 			Response.KeepAlive = Request.KeepAlive;
 			// If file was requested
 			if (Request.Method == HTTPMethod::Get) { // Server only supports Get requests currently
-				if (isFile(Request.File)) {
-					sendFile(Request.File, client);
-				} else {
-					// TODO: Enable directory browsing config setting
-					showDirectoryListing(Request.File, client);
-				}
+				handleGetRequest(client);
 			} else {
 				Response.StatusCode = HTTPStatusCode::ClientError::MethodNotAllowed;
 
