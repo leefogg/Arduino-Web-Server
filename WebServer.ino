@@ -95,7 +95,6 @@ void clearResponse() {
 	Response.StatusCode = HTTPStatusCode::ClientError::BadRequest;
 }
 
-
 void setup() {
 	// Open serial communications and wait for port to open:
 	Serial.begin(250000);
@@ -175,6 +174,7 @@ void readHTTPRequest(EthernetClient client) {
 	}
 
 	// Show read request information
+
 	DebugRequest();
 }
 
@@ -258,8 +258,6 @@ void dumpFile(String filepath, EthernetClient client) {
 /// </summary>
 /// <param name="file">An opened file from the SD card.</param>
 void dumpFile(File file, EthernetClient client) {
-	enableSD();
-
 	// Finish writing header and send to client
 	// TODO: Move to caller
 	Response.ContentLength = file.size();
@@ -268,16 +266,19 @@ void dumpFile(File file, EthernetClient client) {
 	Serial.println("Reading file..");
 	// Ethernet controller has an internal buffer
 	char buffer[EthernetBufferSize];
+	enableSD();
 	while (file.available()) {
 		Serial.print("Reading ");
 		Serial.print(EthernetBufferSize, DEC);
 		Serial.print(" bytes...");
+
 		// Read buffer into RAM while ethernet controller is sending
 		int bytesread = file.read(buffer, EthernetBufferSize);
 		Serial.print(" Read ");
 		Serial.print(bytesread, DEC);
 		Serial.println(" bytes.");
 
+		// Ensure ethernet buffer is empty
 		client.flush();
 
 		// Send buffered data to controller
@@ -315,8 +316,7 @@ bool sendFile(String filepath, EthernetClient client) {
 	}
 
 	// Show 404 page if file not found.
-	File file = SD.open(filepath);
-	if (!file) {
+	if (!SD.exists(filepath)) {
 		Serial.println("File not found.");
 		Response.StatusCode = HTTPStatusCode::ClientError::NotFound;
 		Response.ContentType = "text/html";
@@ -328,6 +328,7 @@ bool sendFile(String filepath, EthernetClient client) {
 	Response.StatusCode = HTTPStatusCode::Success::OK;
 	Response.ContentType = contenttype;
 
+	File file = SD.open(filepath);
 	dumpFile(file, client);	// Write HTTP header and file contents
 	file.close();
 
