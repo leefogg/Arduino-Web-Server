@@ -228,6 +228,31 @@ void writeToEthernet(byte* data, unsigned int size, EthernetClient client) {
 }
 
 /// <summary>
+/// Determines if a given file is a directory
+/// </summary>
+/// <param name="filepath">The absolute file path of a file on the SD card.</param>
+/// <returns>True if the requested file is a directory</returns>
+bool isDirectory(String filepath) {
+	bool isdirectory = false;
+	enableSD();
+
+	File file = SD.open(filepath);
+	isdirectory = file.isDirectory();
+	file.close();
+
+	return isdirectory;
+}
+
+/// <summary>
+/// Determines if a given file is a file
+/// </summary>
+/// <param name="filepath">The absolute file path of a file on the SD card.</param>
+/// <returns>True if the requested file is a file</returns>
+bool isFile(String filepath) {
+	return !isdirectory(filepath);
+}
+
+/// <summary>
 /// Send a file from the SD card to the client.
 /// </summary>
 /// <param name="filepath">Absolute file path of file on SD card.</param>
@@ -411,11 +436,11 @@ void loop() {
 			Response.KeepAlive = Request.KeepAlive;
 			// If file was requested
 			if (Request.Method == HTTPMethod::Get) { // Server only supports Get requests currently
-				if (!Path::hasFile(Request.File)) { // Requested a folder or file without extension
+				if (isFile(Request.File)) {
+					sendFile(Request.File, client);
+				} else {
 					// TODO: Enable directory browsing config setting
 					showDirectoryListing(Request.File, client);
-				} else {
-					sendFile(Request.File, client);
 				}
 			} else {
 				Response.StatusCode = HTTPStatusCode::ClientError::MethodNotAllowed;
