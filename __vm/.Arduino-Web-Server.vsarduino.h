@@ -47,6 +47,7 @@ extern "C" void __cxa_pure_virtual() {;}
 #include <arduino.h>
 #include <pins_arduino.h> 
 #include <variant.h> 
+#include <variant.cpp> 
 # define cli()  __asm__ __volatile__ ("cli" ::: "memory")
 # define sei()  __asm__ __volatile__ ("sei" ::: "memory")
 
