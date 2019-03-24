@@ -43,5 +43,4 @@ If running from a private network you may need to port-forward the local IP on p
 + Enable/Disable directory browsing
 + More error pages
 
-Age: < 1 year <br/>
 Duration: 1 month
